@@ -46,7 +46,7 @@ if node['mesos']['zookeeper_server_list'].count > 0
   zk_path = node['mesos']['zookeeper_path']
 end
 
-if node['mesos']['zookeeper_exhibitor_discovery'] && !node['mesos']['zookeeper_exhibitor_url'].nil?
+if node['mesos']['zookeeper_exhibitor_discovery'] && node['mesos']['zookeeper_exhibitor_url']
   zk_nodes = discover_zookeepers_with_retry(node['mesos']['zookeeper_exhibitor_url'])
 
   if zk_nodes.nil?
@@ -99,27 +99,58 @@ template '/etc/init/mesos-master.conf' do
   notifies :run, 'bash[reload-configuration]'
 end
 
-bash 'reload-configuration' do
-  action :nothing
-  user 'root'
-  code <<-EOH
-  initctl reload-configuration
-  EOH
+if node['platform'] == 'debian'
+  bash 'reload-configuration' do
+    action :nothing
+    user 'root'
+    code <<-EOH
+    update-rc.d mesos-master defaults
+    EOH
+  end
+else
+  bash 'reload-configuration' do
+    action :nothing
+    user 'root'
+    code <<-EOH
+    initctl reload-configuration
+    EOH
+  end
 end
 
-bash 'start-mesos-master' do
-  user 'root'
-  code <<-EOH
-  start mesos-master
-  EOH
-  not_if 'status mesos-master|grep start/running'
+if node['platform'] == 'debian'
+  bash 'start-mesos-master' do
+    user 'root'
+    code <<-EOH
+    service mesos-master start
+    EOH
+    not_if 'service mesos-master status|grep start/running'
+  end
+else
+  bash 'start-mesos-master' do
+    user 'root'
+    code <<-EOH
+    start mesos-master
+    EOH
+    not_if 'status mesos-master|grep start/running'
+  end
 end
 
-bash 'restart-mesos-master' do
-  action :nothing
-  user 'root'
-  code <<-EOH
-  restart mesos-master
-  EOH
-  not_if 'status mesos-master|grep stop/waiting'
+if node['platform'] == 'debian'
+  bash 'restart-mesos-master' do
+    action :nothing
+    user 'root'
+    code <<-EOH
+    service mesos-master restart
+    EOH
+    not_if 'service mesos-master status|grep stop/waiting'
+  end
+else
+  bash 'restart-mesos-master' do
+    action :nothing
+    user 'root'
+    code <<-EOH
+    restart mesos-master
+    EOH
+    not_if 'status mesos-master|grep stop/waiting'
+  end
 end
