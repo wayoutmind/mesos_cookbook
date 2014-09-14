@@ -38,15 +38,10 @@ when 'debian', 'ubuntu'
       major_version, _minor_version = match.captures
       distro_version = major_version
     end
-  elsif distro == 'ubuntu'
-    # For now we need to use the latest 13.x based deb
-    # package until a trusty mesos deb is available
-    # on mesosphere site.
-    distro_version = '13.10' if distro_version == '14.04'
   end
 
   remote_file "#{Chef::Config[:file_cache_path]}/mesos.deb" do
-    source "http://downloads.mesosphere.io/master/#{distro}/#{distro_version}/mesos_#{node['mesos']['version']}_amd64.deb"
+    source node['mesos']['deb_source'] || "http://downloads.mesosphere.io/master/#{distro}/#{distro_version}/mesos_#{node['mesos']['version']}_amd64.deb"
     action :create
     not_if { ::File.exist? '/usr/local/sbin/mesos-master' }
   end
